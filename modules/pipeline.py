@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from datetime import datetime
 
 import dill
@@ -18,7 +19,24 @@ from sklearn.svm import SVC
 # Укажем путь к файлам проекта:
 # -> $PROJECT_PATH при запуске в Airflow
 # -> иначе - текущая директория при локальном запуске
-path = os.environ.get('PROJECT_PATH', '.')
+# path = os.environ.get('PROJECT_PATH', '.')
+
+try:
+    path = os.environ['AIRFLOW_HOME']
+    os.environ['PROJECT_PATH'] = path
+    sys.path.insert(0, path)
+
+except KeyError as e:
+    if e.args[0] == 'AIRFLOW_HOME':
+        path = 'C:\\airflow_hw'
+        # Добавим путь к коду проекта в переменную окружения, чтобы он был доступен python-процессу
+        os.environ['PROJECT_PATH'] = path
+        # Добавим путь к коду проекта в $PATH, чтобы импортировать функции
+        sys.path.insert(0, path)
+
+    else:
+        raise e
+
 
 
 def filter_data(df: pd.DataFrame) -> pd.DataFrame:
@@ -67,7 +85,7 @@ def create_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def pipeline() -> None:
-    df = pd.read_csv(f'{path}/../data/train/homework.csv')
+    df = pd.read_csv(f'{path}/data/train/homework.csv')
 
     X = df.drop('price_category', axis=1)
     y = df['price_category']
@@ -121,7 +139,7 @@ def pipeline() -> None:
     logging.info(f'best model: {type(best_pipe.named_steps["classifier"]).__name__}, accuracy: {best_score:.4f}')
 
     best_pipe.fit(X, y)
-    model_filename = f'{path}/../data/models/cars_pipe_{datetime.now().strftime("%Y%m%d%H%M")}.pkl'
+    model_filename = f'{path}/data/models/cars_pipe_{datetime.now().strftime("%Y%m%d%H%M")}.pkl'
 
     with open(model_filename, 'wb') as file:
         dill.dump(best_pipe, file)
